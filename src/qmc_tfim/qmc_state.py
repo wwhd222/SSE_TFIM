@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from typing import List, Tuple, Union
 
-from .hamiltonian import Hamiltonian
+from .hamiltonian import Hamiltonian, TFIM
 
 def init_op_list(length: int) -> List[Tuple[int, int]]:
     return [(0, 0) for _ in range(length)]
@@ -48,7 +48,7 @@ class BinaryGroundState(AbstractGroundState):
 
 class BinaryThermalState(AbstractThermalState):
     def __init__(self, H: TFIM, M: int, operator_list: List[Tuple[int, int]]):
-        super().__init__(2, H.N)  # 使用 H.N 而不是 H.dim，因为 TFIM 继承自 Hamiltonian
+        super().__init__(2, H.N)  
         self.left_config = np.random.choice([0, 1], size=H.Ns)
         self.right_config = self.left_config.copy()
         self.propagated_config = self.left_config.copy()
