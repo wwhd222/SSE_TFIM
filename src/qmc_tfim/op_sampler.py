@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from typing import List, Tuple, Union
-from probability_vector import probability_vector, AbstractProbabilityVector
+from .probability_vector import probability_vector, AbstractProbabilityVector
 
 def make_prob_vector(bond_spins: List[Tuple[int, int]], Ns: int, J: float, h: float) -> Tuple[List[Tuple[int, int]], List[float]]:
     ops = []
