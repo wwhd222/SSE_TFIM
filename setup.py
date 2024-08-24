@@ -36,7 +36,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "qmc_tfim=qmc_tfim_py.main:main",
+            "qmc_tfim=qmc_tfim.main:main",
         ],
     },
 )
