@@ -348,4 +348,22 @@ def cluster_update_beta(lsize: int, qmc_state, H):
                                 LegType[a] ^= 1
 
     First = qmc_state.first
-    Last =
+    Last = qmc_state.last
+    for i in range(Ns):
+        if First[i] != 0:
+            spin_left[i] = LegType[Last[i]]  # left basis state
+            spin_right[i] = LegType[First[i]]  # right basis state
+        else:
+            # randomly flip spins not connected to operators
+            spin_left[i] = spin_right[i] = np.random.choice([True, False])
+
+    ocount = 1  # first leg
+    for n, op in enumerate(operator_list):
+        if isbondoperator(op):
+            ocount += 4
+        elif not isidentity(op):
+            if LegType[ocount] == LegType[ocount+1]:  # diagonal
+                operator_list[n] = (-1, op[1])
+            else:  # off-diagonal
+                operator_list[n] = (-2, op[1])
+            ocount += 2
