@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from typing import List, Tuple, Union
 
-from hamiltonian import Hamiltonian
+from .hamiltonian import Hamiltonian
 
 def init_op_list(length: int) -> List[Tuple[int, int]]:
     return [(0, 0) for _ in range(length)]
