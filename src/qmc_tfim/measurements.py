@@ -4,7 +4,7 @@ import numpy as np
 from numpy.fft import fft, ifft
 from typing import List, Tuple
 
-from updates import issiteoperator, isdiagonal
+from .updates import issiteoperator, isdiagonal
 
 def sample(qmc_state):
     operator_list = qmc_state.operator_list
