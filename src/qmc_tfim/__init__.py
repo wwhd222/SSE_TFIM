@@ -5,3 +5,4 @@ from .updates import mc_step, mc_step_beta
 from .measurements import sample, magnetization
 from .error import mean_and_stderr, jackknife
 from .op_sampler import HierarchicalOperatorSampler, make_prob_vector
+from .probability_vector import ProbabilityVector, ProbabilityHeap  # 添加这行
