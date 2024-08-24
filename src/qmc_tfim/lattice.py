@@ -3,7 +3,7 @@
 # Defines the spatial lattice; supports 1D and 2D square, open and periodic boundaries
 # The main data structure is the bond-spin index array, bond_spin[nBond,2]
 
-from typing import List, Tuple
+from typing import Union, Tuple, List
 
 def lattice_bond_spins_1d(nX: int, pbc: bool = True) -> Tuple[List[Tuple[int, int]], int, int]:
     Nb = nX if pbc else nX - 1
@@ -15,7 +15,7 @@ def lattice_bond_spins_1d(nX: int, pbc: bool = True) -> Tuple[List[Tuple[int, in
 
     return bond_spin, Ns, Nb
 
-def lattice_bond_spins_2d(nX: Tuple[int, int], pbc: bool = True) -> Tuple[List[Tuple[int, int]], int, int]:
+def lattice_bond_spins(nX: Union[int, Tuple[int, int]], pbc: bool = True) -> Tuple[List[Tuple[int, int]], int, int]:
     if nX[0] != nX[1]:
         raise ValueError("Currently only supports square lattices!")
     L = nX[0]
