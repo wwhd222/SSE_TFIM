@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from typing import List, Tuple, Type, TypeVar
 
-from op_sampler import HierarchicalOperatorSampler, make_prob_vector
+from .op_sampler import HierarchicalOperatorSampler, make_prob_vector
 
 T = TypeVar('T', bound='Hamiltonian')
 
