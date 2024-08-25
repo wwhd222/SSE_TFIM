@@ -251,11 +251,19 @@ def linked_list_update_beta(qmc_state, H):
     Ns = H.nspins()
     spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
 
+    # Calculate the length of the linked list
     len_list = sum(2 if issiteoperator(op) else 4 for op in qmc_state.operator_list if not isidentity(op))
+    len_list += Ns  # Add extra space for safety
 
-    LinkList = qmc_state.linked_list = np.zeros(len_list, dtype=int)
-    LegType = qmc_state.leg_types = np.zeros(len_list, dtype=bool)
-    Associates = qmc_state.associates = [(0, 0, 0) for _ in range(len_list)]
+    # Ensure the arrays are large enough
+    if len(qmc_state.linked_list) < len_list:
+        qmc_state.linked_list = np.zeros(len_list, dtype=int)
+        qmc_state.leg_types = np.zeros(len_list, dtype=bool)
+        qmc_state.associates = [(0, 0, 0) for _ in range(len_list)]
+
+    LinkList = qmc_state.linked_list
+    LegType = qmc_state.leg_types
+    Associates = qmc_state.associates
 
     First = qmc_state.first = np.zeros(Ns, dtype=int)
     Last = qmc_state.last = np.zeros(Ns, dtype=int)
@@ -265,69 +273,83 @@ def linked_list_update_beta(qmc_state, H):
 
     for op in qmc_state.operator_list:
         if issiteoperator(op):
-            site = op[1]
-            idx += 1
+            site = op[1]  # In Python, we use index 1 instead of 2
+            # lower or left leg
             LinkList[idx] = First[site]
             LegType[idx] = spin_prop[site]
             current_link = idx
 
-            if not isdiagonal(op):
+            if not isdiagonal(op):  # off-diagonal site operator
                 spin_prop[site] ^= 1  # spinflip
 
             if First[site] != 0:
-                LinkList[First[site]] = current_link
+                LinkList[First[site]] = current_link  # completes backwards link
             else:
                 Last[site] = current_link
-            First[site] = current_link + 1
+
+            First[site] = idx + 1
             Associates[idx] = (0, 0, 0)
 
             idx += 1
+
+            # upper or right leg
             LegType[idx] = spin_prop[site]
             Associates[idx] = (0, 0, 0)
-        elif isbondoperator(op):
-            site1, site2 = op
 
             idx += 1
+
+        elif isbondoperator(op):  # diagonal bond operator
+            site1, site2 = op
+            # lower left
             LinkList[idx] = First[site1]
             LegType[idx] = spin_prop[site1]
             current_link = idx
 
             if First[site1] != 0:
-                LinkList[First[site1]] = current_link
+                LinkList[First[site1]] = current_link  # completes backwards link
             else:
                 Last[site1] = current_link
 
-            First[site1] = current_link + 2
-            vertex1 = current_link
+            First[site1] = idx + 2
+            vertex1 = idx
             Associates[idx] = (vertex1 + 1, vertex1 + 2, vertex1 + 3)
 
             idx += 1
+
+            # lower right
             LinkList[idx] = First[site2]
             LegType[idx] = spin_prop[site2]
             current_link = idx
 
             if First[site2] != 0:
-                LinkList[First[site2]] = current_link
+                LinkList[First[site2]] = current_link  # completes backwards link
             else:
                 Last[site2] = current_link
 
-            First[site2] = current_link + 2
+            First[site2] = idx + 2
             Associates[idx] = (vertex1, vertex1 + 2, vertex1 + 3)
 
             idx += 1
+
+            # upper left
             LegType[idx] = spin_prop[site1]
             Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 3)
 
             idx += 1
+
+            # upper right
             LegType[idx] = spin_prop[site2]
             Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 2)
 
+            idx += 1
+
+    # Periodic boundary conditions for finite-beta
     for i in range(Ns):
-        if First[i] != 0:
+        if First[i] != 0:  # This might be encountered at high temperatures
             LinkList[First[i]] = Last[i]
             LinkList[Last[i]] = First[i]
 
-    return len_list
+    return idx
 
 def cluster_update_beta(lsize: int, qmc_state, H):
     Ns = H.nspins()
