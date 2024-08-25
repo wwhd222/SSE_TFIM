@@ -49,18 +49,19 @@ class BinaryGroundState(AbstractGroundState):
 class BinaryThermalState(AbstractThermalState):
     def __init__(self, H: TFIM, M: int, operator_list: List[Tuple[int, int]]):
         super().__init__(2, H.N)
-        self.left_config = np.random.choice([0, 1], size=H.Ns)
+        self.Ns = H.Ns
+        self.left_config = np.random.choice([0, 1], size=self.Ns)
         self.right_config = self.left_config.copy()
         self.propagated_config = self.left_config.copy()
         self.operator_list = operator_list
 
-        len_list = 4 * len(operator_list) + H.Ns  # Add extra space
-        self.linked_list = np.zeros(len_list, dtype=int)
-        self.leg_types = np.zeros(len_list, dtype=bool)
-        self.associates = [(0, 0, 0) for _ in range(len_list)]
+        max_len = max(4 * M, 4 * len(operator_list) + self.Ns)
+        self.linked_list = np.zeros(max_len, dtype=int)
+        self.leg_types = np.zeros(max_len, dtype=bool)
+        self.associates = [(0, 0, 0) for _ in range(max_len)]
 
-        self.first = np.zeros(H.Ns, dtype=int)
-        self.last = np.zeros(H.Ns, dtype=int)
+        self.first = np.zeros(self.Ns, dtype=int)
+        self.last = np.zeros(self.Ns, dtype=int)
 
     @classmethod
     def from_hamiltonian(cls, H: Hamiltonian, cutoff: int):
