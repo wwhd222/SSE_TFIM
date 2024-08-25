@@ -284,6 +284,7 @@ def diagonal_update_beta(qmc_state, H: TFIM, beta: float, eq: bool = False):
             if op[1] < len(spin_prop):
                 spin_prop[op[1]] ^= 1  # spinflip
             else:
+                continue
                 #print(f"Warning: Operator {op} refers to a site outside of spin_prop range. Skipping.")
         elif not isidentity(op):
             if np.random.random() < P_remove:
@@ -491,6 +492,7 @@ def cluster_update_beta(lsize: int, qmc_state, H):
                                 if flip:
                                     LegType[a] ^= 1
                             else:
+                                continue
                                 #print(f"Warning: associate {a} is out of bounds. Skipping.")
 
     # map back basis states and operator list
@@ -520,6 +522,7 @@ def cluster_update_beta(lsize: int, qmc_state, H):
                     operator_list[n] = (-2, op[1])
                 ocount += 2
             else:
+                continue
                 #print(f"Warning: ocount {ocount} is out of bounds. Skipping operator update.")
 
     # Update relevant arrays in qmc_state
