@@ -4,7 +4,6 @@ import numpy as np
 from typing import Tuple, List, Callable
 from collections import deque
 from .hamiltonian import TFIM
-from .op_sampler import issiteoperator, isbondoperator, isdiagonal, isidentity
 
 # Helper functions for operator types
 def isdiagonal(op: Tuple[int, int]) -> bool:
