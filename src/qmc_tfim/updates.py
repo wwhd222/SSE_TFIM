@@ -3,6 +3,8 @@
 import numpy as np
 from typing import Tuple, List, Callable
 from collections import deque
+from .hamiltonian import TFIM
+from .op_sampler import issiteoperator, isbondoperator, isdiagonal, isidentity
 
 # Helper functions for operator types
 def isdiagonal(op: Tuple[int, int]) -> bool:
@@ -279,24 +281,39 @@ def diagonal_update_beta(qmc_state, H, beta: float, eq: bool = False):
 
     return num_ops
 
-def linked_list_update_beta(qmc_state, H):
-    Ns = qmc_state.Ns
-    print(f"Ns: {Ns}")
-    
+def linked_list_update_beta(qmc_state, H: TFIM):
+    Ns = H.nspins()
+    print(f"Number of spins (Ns): {Ns}")
+    spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
+
+    # Calculate the length of the linked list
+    len_list = sum(2 if issiteoperator(op) else 4 for op in qmc_state.operator_list if not isidentity(op))
+    len_list += Ns  # Add extra space for safety
+    print(f"Calculated len_list: {len_list}")
+
+    # Find the maximum site index
+    max_site = max(max(op[1] if issiteoperator(op) else max(op) for op in qmc_state.operator_list if not isidentity(op)), Ns - 1)
+    print(f"Maximum site index: {max_site}")
+
+    # Ensure the arrays are large enough
+    if len(qmc_state.linked_list) < len_list:
+        qmc_state.linked_list = np.zeros(len_list, dtype=int)
+        qmc_state.leg_types = np.zeros(len_list, dtype=bool)
+        qmc_state.associates = [(0, 0, 0) for _ in range(len_list)]
+
     LinkList = qmc_state.linked_list
     LegType = qmc_state.leg_types
     Associates = qmc_state.associates
-    
-    print(f"Initial LinkList size: {len(LinkList)}")
-    
-    First = qmc_state.first
-    Last = qmc_state.last
-    First.fill(0)
-    Last.fill(0)
 
-    spin_prop = qmc_state.propagated_config = qmc_state.left_config.copy()
-
+    # Increase the size of First and Last arrays
+    First = qmc_state.first = np.zeros(max_site + 1, dtype=int)
+    Last = qmc_state.last = np.zeros(max_site + 1, dtype=int)
     idx = 0
+
+    spin_prop = qmc_state.propagated_config = spin_left.copy()
+
+    print(f"Initial array sizes - LinkList: {len(LinkList)}, LegType: {len(LegType)}, Associates: {len(Associates)}, First: {len(First)}, Last: {len(Last)}")
+
     for op_idx, op in enumerate(qmc_state.operator_list):
         print(f"Processing operator {op_idx}: {op}")
         print(f"Current idx: {idx}")
@@ -312,11 +329,16 @@ def linked_list_update_beta(qmc_state, H):
             site = op[1]
             print(f"Site operator at site {site}")
             
+            if site >= len(First):
+                print(f"Warning: site {site} is out of bounds for First array with size {len(First)}. Skipping this operator.")
+                continue
+
             LinkList[idx] = First[site]
-            LegType[idx] = spin_prop[site]
+            LegType[idx] = spin_prop[site] if site < len(spin_prop) else False
             
             if not isdiagonal(op):
-                spin_prop[site] ^= 1
+                if site < len(spin_prop):
+                    spin_prop[site] ^= 1
 
             if First[site] != 0:
                 LinkList[First[site] - 1] = idx + 1
@@ -327,7 +349,7 @@ def linked_list_update_beta(qmc_state, H):
             Associates[idx] = (0, 0, 0)
             idx += 1
 
-            LegType[idx] = spin_prop[site]
+            LegType[idx] = spin_prop[site] if site < len(spin_prop) else False
             Associates[idx] = (0, 0, 0)
             idx += 1
 
@@ -335,58 +357,64 @@ def linked_list_update_beta(qmc_state, H):
             site1, site2 = op
             print(f"Bond operator at sites {site1} and {site2}")
             
+            if site1 >= len(First) or site2 >= len(First):
+                print(f"Warning: sites {site1} or {site2} are out of bounds for First array with size {len(First)}. Skipping this operator.")
+                continue
+
+            # lower left
             LinkList[idx] = First[site1]
-            LegType[idx] = spin_prop[site1]
+            LegType[idx] = spin_prop[site1] if site1 < len(spin_prop) else False
             
             if First[site1] != 0:
                 LinkList[First[site1] - 1] = idx + 1
             else:
                 Last[site1] = idx + 1
-            
+
             First[site1] = idx + 2
             vertex1 = idx
             Associates[idx] = (vertex1 + 1, vertex1 + 2, vertex1 + 3)
             idx += 1
 
+            # lower right
             LinkList[idx] = First[site2]
-            LegType[idx] = spin_prop[site2]
+            LegType[idx] = spin_prop[site2] if site2 < len(spin_prop) else False
             
             if First[site2] != 0:
                 LinkList[First[site2] - 1] = idx + 1
             else:
                 Last[site2] = idx + 1
-            
+
             First[site2] = idx + 2
             Associates[idx] = (vertex1, vertex1 + 2, vertex1 + 3)
             idx += 1
 
-            LegType[idx] = spin_prop[site1]
+            # upper left
+            LegType[idx] = spin_prop[site1] if site1 < len(spin_prop) else False
             Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 3)
             idx += 1
 
-            LegType[idx] = spin_prop[site2]
+            # upper right
+            LegType[idx] = spin_prop[site2] if site2 < len(spin_prop) else False
             Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 2)
             idx += 1
 
         print(f"After processing, idx: {idx}")
         print(f"Current LinkList size: {len(LinkList)}")
 
-    print(f"Final idx: {idx}")
-    print(f"Final LinkList size: {len(LinkList)}")
-
-    for i in range(Ns):
-        if First[i] != 0:
+    # Periodic boundary conditions for finite-beta
+    for i in range(min(Ns, len(First))):
+        if First[i] != 0:  # This might be encountered at high temperatures
             LinkList[First[i] - 1] = Last[i]
             LinkList[Last[i] - 1] = First[i]
+
+    print(f"Final idx: {idx}")
+    print(f"Final LinkList size: {len(LinkList)}")
 
     qmc_state.linked_list = LinkList[:idx]
     qmc_state.leg_types = LegType[:idx]
     qmc_state.associates = Associates[:idx]
 
     return idx
-
-import numpy as np
-from collections import deque
 
 def cluster_update_beta(lsize: int, qmc_state, H):
     Ns = H.nspins()
