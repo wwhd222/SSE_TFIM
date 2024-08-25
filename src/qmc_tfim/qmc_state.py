@@ -22,7 +22,7 @@ class AbstractThermalState(AbstractQMCState):
 
 class BinaryGroundState(AbstractGroundState):
     def __init__(self, left_config: np.ndarray, right_config: np.ndarray, operator_list: List[Tuple[int, int]]):
-        super().__init__(2, left_config.dim)
+        super().__init__(2, H.N)
         assert left_config is not right_config, "left_config and right_config can't be the same array!"
 
         self.left_config = left_config
