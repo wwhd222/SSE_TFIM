@@ -264,7 +264,12 @@ def diagonal_update_beta(qmc_state, H: TFIM, beta: float, eq: bool = False):
     P_accept = P_norm / num_ids if num_ids > 0 else 0
 
     # Ensure spin_prop is large enough
-    max_site = max(max(op[1] if issiteoperator(op) else max(op) for op in qmc_state.operator_list if not isidentity(op)), H.nspins() - 1)
+    non_identity_ops = [op for op in qmc_state.operator_list if not isidentity(op)]
+    if non_identity_ops:
+        max_site = max(max(op[1] if issiteoperator(op) else max(op) for op in non_identity_ops), H.nspins() - 1)
+    else:
+        max_site = H.nspins() - 1
+
     if len(qmc_state.propagated_config) <= max_site:
         new_size = max_site + 1
         qmc_state.propagated_config = np.resize(qmc_state.propagated_config, new_size)
@@ -301,7 +306,7 @@ def diagonal_update_beta(qmc_state, H: TFIM, beta: float, eq: bool = False):
         resize_op_list(qmc_state, int(1.5 * num_ops + 0.5))
 
     return num_ops
-
+    
 def linked_list_update_beta(qmc_state, H: TFIM):
     Ns = H.nspins()
     print(f"Number of spins (Ns): {Ns}")
