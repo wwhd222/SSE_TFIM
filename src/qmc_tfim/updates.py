@@ -249,30 +249,36 @@ def diagonal_update_beta(qmc_state, H, beta: float, eq: bool = False):
 
 def linked_list_update_beta(qmc_state, H):
     Ns = qmc_state.Ns
-    spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
-
+    print(f"Ns: {Ns}")
+    
     LinkList = qmc_state.linked_list
     LegType = qmc_state.leg_types
     Associates = qmc_state.associates
-
+    
+    print(f"Initial LinkList size: {len(LinkList)}")
+    
     First = qmc_state.first
     Last = qmc_state.last
     First.fill(0)
     Last.fill(0)
 
-    spin_prop = qmc_state.propagated_config = spin_left.copy()
+    spin_prop = qmc_state.propagated_config = qmc_state.left_config.copy()
 
     idx = 0
-    for op in qmc_state.operator_list:
+    for op_idx, op in enumerate(qmc_state.operator_list):
+        print(f"Processing operator {op_idx}: {op}")
+        print(f"Current idx: {idx}")
+        
         if idx >= len(LinkList) - 4:
-            # Resize arrays if needed
             new_size = len(LinkList) * 2
+            print(f"Resizing arrays to {new_size}")
             LinkList = np.resize(LinkList, new_size)
             LegType = np.resize(LegType, new_size)
             Associates.extend([(0, 0, 0)] * (new_size - len(Associates)))
 
         if issiteoperator(op):
             site = op[1]
+            print(f"Site operator at site {site}")
             
             LinkList[idx] = First[site]
             LegType[idx] = spin_prop[site]
@@ -295,7 +301,8 @@ def linked_list_update_beta(qmc_state, H):
 
         elif isbondoperator(op):
             site1, site2 = op
-
+            print(f"Bond operator at sites {site1} and {site2}")
+            
             LinkList[idx] = First[site1]
             LegType[idx] = spin_prop[site1]
             
@@ -328,6 +335,12 @@ def linked_list_update_beta(qmc_state, H):
             LegType[idx] = spin_prop[site2]
             Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 2)
             idx += 1
+
+        print(f"After processing, idx: {idx}")
+        print(f"Current LinkList size: {len(LinkList)}")
+
+    print(f"Final idx: {idx}")
+    print(f"Final LinkList size: {len(LinkList)}")
 
     for i in range(Ns):
         if First[i] != 0:
