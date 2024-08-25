@@ -48,13 +48,13 @@ class BinaryGroundState(AbstractGroundState):
 
 class BinaryThermalState(AbstractThermalState):
     def __init__(self, H: TFIM, M: int, operator_list: List[Tuple[int, int]]):
-        super().__init__(2, H.N)  
+        super().__init__(2, H.N)
         self.left_config = np.random.choice([0, 1], size=H.Ns)
         self.right_config = self.left_config.copy()
         self.propagated_config = self.left_config.copy()
         self.operator_list = operator_list
 
-        len_list = 4 * len(operator_list)
+        len_list = 4 * len(operator_list) + H.Ns  # Add extra space
         self.linked_list = np.zeros(len_list, dtype=int)
         self.leg_types = np.zeros(len_list, dtype=bool)
         self.associates = [(0, 0, 0) for _ in range(len_list)]
