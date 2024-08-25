@@ -353,62 +353,90 @@ def linked_list_update_beta(qmc_state, H):
 
     return idx
 
+import numpy as np
+from collections import deque
+
 def cluster_update_beta(lsize: int, qmc_state, H):
     Ns = H.nspins()
     spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
     operator_list = qmc_state.operator_list
-
     LinkList = qmc_state.linked_list
     LegType = qmc_state.leg_types
     Associates = qmc_state.associates
 
+    # Ensure lsize does not exceed the actual length of LinkList
+    lsize = min(lsize, len(LinkList))
     in_cluster = np.zeros(lsize, dtype=int)
     cstack = deque()
-    ccount = 0
+    ccount = 0  # cluster number counter
 
     for i in range(lsize):
+        # Add a new leg onto the cluster
         if in_cluster[i] == 0 and Associates[i] == (0, 0, 0):
             ccount += 1
             cstack.append(i)
             in_cluster[i] = ccount
+            flip = np.random.random() < 0.5  # flip a coin for the SW cluster flip
 
-            flip = np.random.random() < 0.5
             if flip:
                 LegType[i] ^= 1  # spinflip
 
             while cstack:
                 leg = LinkList[cstack.pop()]
+                
+                # Add safety check
+                if leg >= lsize:
+                    print(f"Warning: leg {leg} is out of bounds. Skipping.")
+                    continue
 
                 if in_cluster[leg] == 0:
-                    in_cluster[leg] = ccount
+                    in_cluster[leg] = ccount  # add the new leg and flip it
                     if flip:
                         LegType[leg] ^= 1
-
+                    
+                    # now check all associates and add to cluster
                     assoc = Associates[leg]
                     if assoc != (0, 0, 0):
                         for a in assoc:
-                            cstack.append(a)
-                            in_cluster[a] = ccount
-                            if flip:
-                                LegType[a] ^= 1
+                            # Add safety check
+                            if a < lsize:
+                                cstack.append(a)
+                                in_cluster[a] = ccount
+                                if flip:
+                                    LegType[a] ^= 1
+                            else:
+                                print(f"Warning: associate {a} is out of bounds. Skipping.")
 
+    # map back basis states and operator list
     First = qmc_state.first
     Last = qmc_state.last
     for i in range(Ns):
         if First[i] != 0:
-            spin_left[i] = LegType[Last[i]]  # left basis state
-            spin_right[i] = LegType[First[i]]  # right basis state
+            # Add safety checks
+            last_index = min(Last[i] - 1, lsize - 1)
+            first_index = min(First[i] - 1, lsize - 1)
+            spin_left[i] = LegType[last_index]
+            spin_right[i] = LegType[first_index]
         else:
             # randomly flip spins not connected to operators
-            spin_left[i] = spin_right[i] = np.random.choice([True, False])
+            spin_left[i] = spin_right[i] = np.random.random() < 0.5
 
-    ocount = 1  # first leg
+    ocount = 0  # first leg (Python uses 0-based indexing)
     for n, op in enumerate(operator_list):
         if isbondoperator(op):
             ocount += 4
         elif not isidentity(op):
-            if LegType[ocount] == LegType[ocount+1]:  # diagonal
-                operator_list[n] = (-1, op[1])
-            else:  # off-diagonal
-                operator_list[n] = (-2, op[1])
-            ocount += 2
+            # Add safety check
+            if ocount + 1 < lsize:
+                if LegType[ocount] == LegType[ocount + 1]:  # diagonal
+                    operator_list[n] = (-1, op[1])
+                else:  # off-diagonal
+                    operator_list[n] = (-2, op[1])
+                ocount += 2
+            else:
+                print(f"Warning: ocount {ocount} is out of bounds. Skipping operator update.")
+
+    # Update relevant arrays in qmc_state
+    qmc_state.linked_list = LinkList[:lsize]
+    qmc_state.leg_types = LegType[:lsize]
+    qmc_state.associates = Associates[:lsize]
