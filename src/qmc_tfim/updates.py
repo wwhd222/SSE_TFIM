@@ -39,7 +39,7 @@ def insert_diagonal_operator(qmc_state, H: TFIM, spin_prop, n):
             qmc_state.operator_list[n] = op
             return True
         else:
-            print(f"Warning: Sampled site operator {op} refers to a site outside of spin_prop range. Skipping.")
+            #print(f"Warning: Sampled site operator {op} refers to a site outside of spin_prop range. Skipping.")
             return False
     elif isbondoperator(op):
         site1, site2 = op
@@ -60,13 +60,13 @@ def diagonal_update(qmc_state, H):
 
 def linked_list_update_beta(qmc_state, H):
     Ns = H.nspins()
-    print(f"Number of spins (Ns): {Ns}")
+    #print(f"Number of spins (Ns): {Ns}")
     spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
 
     # Calculate the length of the linked list
     len_list = sum(2 if issiteoperator(op) else 4 for op in qmc_state.operator_list if not isidentity(op))
     len_list += Ns  # Add extra space for safety
-    print(f"Calculated len_list: {len_list}")
+    #print(f"Calculated len_list: {len_list}")
 
     # Ensure the arrays are large enough
     if len(qmc_state.linked_list) < len_list:
@@ -84,25 +84,25 @@ def linked_list_update_beta(qmc_state, H):
 
     spin_prop = qmc_state.propagated_config = spin_left.copy()
 
-    print(f"Initial array sizes - LinkList: {len(LinkList)}, LegType: {len(LegType)}, Associates: {len(Associates)}, First: {len(First)}, Last: {len(Last)}")
+    #print(f"Initial array sizes - LinkList: {len(LinkList)}, LegType: {len(LegType)}, Associates: {len(Associates)}, First: {len(First)}, Last: {len(Last)}")
 
     for op_idx, op in enumerate(qmc_state.operator_list):
-        print(f"Processing operator {op_idx}: {op}")
-        print(f"Current idx: {idx}")
+        #print(f"Processing operator {op_idx}: {op}")
+        #print(f"Current idx: {idx}")
         
         if idx >= len(LinkList) - 4:
             new_size = len(LinkList) * 2
-            print(f"Resizing arrays to {new_size}")
+            #print(f"Resizing arrays to {new_size}")
             LinkList = np.resize(LinkList, new_size)
             LegType = np.resize(LegType, new_size)
             Associates.extend([(0, 0, 0)] * (new_size - len(Associates)))
 
         if issiteoperator(op):
             site = op[1]
-            print(f"Site operator at site {site}")
+            #print(f"Site operator at site {site}")
             
             if site >= Ns:
-                print(f"Warning: site {site} is out of bounds for Ns {Ns}. Skipping this operator.")
+                #print(f"Warning: site {site} is out of bounds for Ns {Ns}. Skipping this operator.")
                 continue
 
             LinkList[idx] = First[site]
@@ -126,10 +126,10 @@ def linked_list_update_beta(qmc_state, H):
 
         elif isbondoperator(op):
             site1, site2 = op
-            print(f"Bond operator at sites {site1} and {site2}")
+            #print(f"Bond operator at sites {site1} and {site2}")
             
             if site1 >= Ns or site2 >= Ns:
-                print(f"Warning: sites {site1} or {site2} are out of bounds for Ns {Ns}. Skipping this operator.")
+                #print(f"Warning: sites {site1} or {site2} are out of bounds for Ns {Ns}. Skipping this operator.")
                 continue
 
             # lower left
@@ -169,8 +169,8 @@ def linked_list_update_beta(qmc_state, H):
             Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 2)
             idx += 1
 
-        print(f"After processing, idx: {idx}")
-        print(f"Current LinkList size: {len(LinkList)}")
+        #print(f"After processing, idx: {idx}")
+        #print(f"Current LinkList size: {len(LinkList)}")
 
     # Periodic boundary conditions for finite-beta
     for i in range(Ns):
@@ -178,8 +178,8 @@ def linked_list_update_beta(qmc_state, H):
             LinkList[First[i] - 1] = Last[i]
             LinkList[Last[i] - 1] = First[i]
 
-    print(f"Final idx: {idx}")
-    print(f"Final LinkList size: {len(LinkList)}")
+    #print(f"Final idx: {idx}")
+    #print(f"Final LinkList size: {len(LinkList)}")
 
     qmc_state.linked_list = LinkList[:idx]
     qmc_state.leg_types = LegType[:idx]
@@ -275,7 +275,7 @@ def diagonal_update_beta(qmc_state, H: TFIM, beta: float, eq: bool = False):
         qmc_state.propagated_config = np.resize(qmc_state.propagated_config, new_size)
         qmc_state.left_config = np.resize(qmc_state.left_config, new_size)
         qmc_state.right_config = np.resize(qmc_state.right_config, new_size)
-        print(f"Resized spin configurations to {new_size}")
+        #print(f"Resized spin configurations to {new_size}")
 
     spin_prop = qmc_state.propagated_config
 
@@ -284,7 +284,7 @@ def diagonal_update_beta(qmc_state, H: TFIM, beta: float, eq: bool = False):
             if op[1] < len(spin_prop):
                 spin_prop[op[1]] ^= 1  # spinflip
             else:
-                print(f"Warning: Operator {op} refers to a site outside of spin_prop range. Skipping.")
+                #print(f"Warning: Operator {op} refers to a site outside of spin_prop range. Skipping.")
         elif not isidentity(op):
             if np.random.random() < P_remove:
                 qmc_state.operator_list[n] = (0, 0)
@@ -309,17 +309,17 @@ def diagonal_update_beta(qmc_state, H: TFIM, beta: float, eq: bool = False):
     
 def linked_list_update_beta(qmc_state, H: TFIM):
     Ns = H.nspins()
-    print(f"Number of spins (Ns): {Ns}")
+    #print(f"Number of spins (Ns): {Ns}")
     spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
 
     # Calculate the length of the linked list
     len_list = sum(2 if issiteoperator(op) else 4 for op in qmc_state.operator_list if not isidentity(op))
     len_list += Ns  # Add extra space for safety
-    print(f"Calculated len_list: {len_list}")
+    #print(f"Calculated len_list: {len_list}")
 
     # Find the maximum site index
     max_site = max(max(op[1] if issiteoperator(op) else max(op) for op in qmc_state.operator_list if not isidentity(op)), Ns - 1)
-    print(f"Maximum site index: {max_site}")
+    #print(f"Maximum site index: {max_site}")
 
     # Ensure the arrays are large enough
     if len(qmc_state.linked_list) < len_list:
@@ -338,25 +338,25 @@ def linked_list_update_beta(qmc_state, H: TFIM):
 
     spin_prop = qmc_state.propagated_config = spin_left.copy()
 
-    print(f"Initial array sizes - LinkList: {len(LinkList)}, LegType: {len(LegType)}, Associates: {len(Associates)}, First: {len(First)}, Last: {len(Last)}")
+    #print(f"Initial array sizes - LinkList: {len(LinkList)}, LegType: {len(LegType)}, Associates: {len(Associates)}, First: {len(First)}, Last: {len(Last)}")
 
     for op_idx, op in enumerate(qmc_state.operator_list):
-        print(f"Processing operator {op_idx}: {op}")
-        print(f"Current idx: {idx}")
+        #print(f"Processing operator {op_idx}: {op}")
+        #print(f"Current idx: {idx}")
         
         if idx >= len(LinkList) - 4:
             new_size = len(LinkList) * 2
-            print(f"Resizing arrays to {new_size}")
+            #print(f"Resizing arrays to {new_size}")
             LinkList = np.resize(LinkList, new_size)
             LegType = np.resize(LegType, new_size)
             Associates.extend([(0, 0, 0)] * (new_size - len(Associates)))
 
         if issiteoperator(op):
             site = op[1]
-            print(f"Site operator at site {site}")
+            #print(f"Site operator at site {site}")
             
             if site >= len(First):
-                print(f"Warning: site {site} is out of bounds for First array with size {len(First)}. Skipping this operator.")
+                #print(f"Warning: site {site} is out of bounds for First array with size {len(First)}. Skipping this operator.")
                 continue
 
             LinkList[idx] = First[site]
@@ -381,10 +381,10 @@ def linked_list_update_beta(qmc_state, H: TFIM):
 
         elif isbondoperator(op):
             site1, site2 = op
-            print(f"Bond operator at sites {site1} and {site2}")
+            #print(f"Bond operator at sites {site1} and {site2}")
             
             if site1 >= len(First) or site2 >= len(First):
-                print(f"Warning: sites {site1} or {site2} are out of bounds for First array with size {len(First)}. Skipping this operator.")
+                #print(f"Warning: sites {site1} or {site2} are out of bounds for First array with size {len(First)}. Skipping this operator.")
                 continue
 
             # lower left
@@ -424,8 +424,8 @@ def linked_list_update_beta(qmc_state, H: TFIM):
             Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 2)
             idx += 1
 
-        print(f"After processing, idx: {idx}")
-        print(f"Current LinkList size: {len(LinkList)}")
+        #print(f"After processing, idx: {idx}")
+        #print(f"Current LinkList size: {len(LinkList)}")
 
     # Periodic boundary conditions for finite-beta
     for i in range(min(Ns, len(First))):
@@ -433,8 +433,8 @@ def linked_list_update_beta(qmc_state, H: TFIM):
             LinkList[First[i] - 1] = Last[i]
             LinkList[Last[i] - 1] = First[i]
 
-    print(f"Final idx: {idx}")
-    print(f"Final LinkList size: {len(LinkList)}")
+    #print(f"Final idx: {idx}")
+    #print(f"Final LinkList size: {len(LinkList)}")
 
     qmc_state.linked_list = LinkList[:idx]
     qmc_state.leg_types = LegType[:idx]
@@ -472,7 +472,7 @@ def cluster_update_beta(lsize: int, qmc_state, H):
                 
                 # Add safety check
                 if leg >= lsize:
-                    print(f"Warning: leg {leg} is out of bounds. Skipping.")
+                    #print(f"Warning: leg {leg} is out of bounds. Skipping.")
                     continue
 
                 if in_cluster[leg] == 0:
@@ -491,7 +491,7 @@ def cluster_update_beta(lsize: int, qmc_state, H):
                                 if flip:
                                     LegType[a] ^= 1
                             else:
-                                print(f"Warning: associate {a} is out of bounds. Skipping.")
+                                #print(f"Warning: associate {a} is out of bounds. Skipping.")
 
     # map back basis states and operator list
     First = qmc_state.first
@@ -520,7 +520,7 @@ def cluster_update_beta(lsize: int, qmc_state, H):
                     operator_list[n] = (-2, op[1])
                 ocount += 2
             else:
-                print(f"Warning: ocount {ocount} is out of bounds. Skipping operator update.")
+                #print(f"Warning: ocount {ocount} is out of bounds. Skipping operator update.")
 
     # Update relevant arrays in qmc_state
     qmc_state.linked_list = LinkList[:lsize]
