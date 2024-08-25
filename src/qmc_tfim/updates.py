@@ -48,79 +48,100 @@ def diagonal_update(qmc_state, H):
             while not insert_diagonal_operator(qmc_state, H, spin_prop, n):
                 pass
 
-def linked_list_update(qmc_state, H):
+def linked_list_update_beta(qmc_state, H):
     Ns = H.nspins()
-    spin_left = qmc_state.left_config
+    spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
 
-    len_list = 2 * Ns + sum(4 if isbondoperator(op) else 2 for op in qmc_state.operator_list)
+    # Calculate the length of the linked list
+    len_list = sum(2 if issiteoperator(op) else 4 for op in qmc_state.operator_list if not isidentity(op))
 
-    LinkList = qmc_state.linked_list = np.zeros(len_list, dtype=int)
-    LegType = qmc_state.leg_types = np.zeros(len_list, dtype=bool)
-    Associates = qmc_state.associates = [(0, 0, 0) for _ in range(len_list)]
+    # Ensure the arrays are large enough
+    if len(qmc_state.linked_list) < len_list:
+        qmc_state.linked_list = np.zeros(len_list, dtype=int)
+        qmc_state.leg_types = np.zeros(len_list, dtype=bool)
+        qmc_state.associates = [(0, 0, 0) for _ in range(len_list)]
+
+    LinkList = qmc_state.linked_list
+    LegType = qmc_state.leg_types
+    Associates = qmc_state.associates
+
     First = qmc_state.first = np.zeros(Ns, dtype=int)
-
-    for i in range(Ns):
-        LegType[i] = spin_left[i]
-        First[i] = i
-        Associates[i] = (0, 0, 0)
+    Last = qmc_state.last = np.zeros(Ns, dtype=int)
+    idx = 0
 
     spin_prop = qmc_state.propagated_config = spin_left.copy()
-    idx = Ns
 
     for op in qmc_state.operator_list:
         if issiteoperator(op):
-            site = op[1]
+            site = op[1]  # In Python, we use index 1 instead of 2
+            # lower or left leg
             idx += 1
-            LinkList[idx] = First[site]
-            LegType[idx] = spin_prop[site]
+            LinkList[idx - 1] = First[site]  # Python uses 0-based indexing
+            LegType[idx - 1] = spin_prop[site]
             current_link = idx
 
-            if not isdiagonal(op):
+            if not isdiagonal(op):  # off-diagonal site operator
                 spin_prop[site] ^= 1  # spinflip
 
-            LinkList[First[site]] = current_link
+            if First[site] != 0:
+                LinkList[First[site] - 1] = current_link  # completes backwards link
+            else:
+                Last[site] = current_link
+
             First[site] = current_link + 1
-            Associates[idx] = (0, 0, 0)
+            Associates[idx - 1] = (0, 0, 0)
 
+            # upper or right leg
             idx += 1
-            LegType[idx] = spin_prop[site]
-            Associates[idx] = (0, 0, 0)
-        else:  # diagonal bond operator
+            LegType[idx - 1] = spin_prop[site]
+            Associates[idx - 1] = (0, 0, 0)
+
+        elif isbondoperator(op):  # diagonal bond operator
             site1, site2 = op
-
+            # lower left
             idx += 1
-            LinkList[idx] = First[site1]
-            LegType[idx] = spin_prop[site1]
+            LinkList[idx - 1] = First[site1]
+            LegType[idx - 1] = spin_prop[site1]
             current_link = idx
 
-            LinkList[First[site1]] = current_link
+            if First[site1] != 0:
+                LinkList[First[site1] - 1] = current_link  # completes backwards link
+            else:
+                Last[site1] = current_link
+
             First[site1] = current_link + 2
             vertex1 = current_link
-            Associates[idx] = (vertex1 + 1, vertex1 + 2, vertex1 + 3)
+            Associates[idx - 1] = (vertex1 + 1, vertex1 + 2, vertex1 + 3)
 
+            # lower right
             idx += 1
-            LinkList[idx] = First[site2]
-            LegType[idx] = spin_prop[site2]
+            LinkList[idx - 1] = First[site2]
+            LegType[idx - 1] = spin_prop[site2]
             current_link = idx
 
-            LinkList[First[site2]] = current_link
+            if First[site2] != 0:
+                LinkList[First[site2] - 1] = current_link  # completes backwards link
+            else:
+                Last[site2] = current_link
+
             First[site2] = current_link + 2
-            Associates[idx] = (vertex1, vertex1 + 2, vertex1 + 3)
+            Associates[idx - 1] = (vertex1, vertex1 + 2, vertex1 + 3)
 
+            # upper left
             idx += 1
-            LegType[idx] = spin_prop[site1]
-            Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 3)
+            LegType[idx - 1] = spin_prop[site1]
+            Associates[idx - 1] = (vertex1, vertex1 + 1, vertex1 + 3)
 
+            # upper right
             idx += 1
-            LegType[idx] = spin_prop[site2]
-            Associates[idx] = (vertex1, vertex1 + 1, vertex1 + 2)
+            LegType[idx - 1] = spin_prop[site2]
+            Associates[idx - 1] = (vertex1, vertex1 + 1, vertex1 + 2)
 
+    # Periodic boundary conditions for finite-beta
     for i in range(Ns):
-        idx += 1
-        LinkList[idx] = First[i]
-        LegType[idx] = spin_prop[i]
-        LinkList[First[i]] = idx
-        Associates[idx] = (0, 0, 0)
+        if First[i] != 0:  # This might be encountered at high temperatures
+            LinkList[First[i] - 1] = Last[i]
+            LinkList[Last[i] - 1] = First[i]
 
     return len_list
 
