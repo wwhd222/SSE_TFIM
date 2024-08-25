@@ -31,12 +31,21 @@ def mc_step_beta(f: Callable, qmc_state, H, beta: float, eq: bool = False):
     cluster_update_beta(cluster_data, qmc_state, H)
     return num_ops
 
-def insert_diagonal_operator(qmc_state, H, spin_prop, n):
+def insert_diagonal_operator(qmc_state, H: TFIM, spin_prop, n):
     op = H.op_sampler.rand()
-    site1, site2 = op
-    if issiteoperator(op) or spin_prop[site1] == spin_prop[site2]:
-        qmc_state.operator_list[n] = op
-        return True
+    if issiteoperator(op):
+        site = op[1]
+        if site < len(spin_prop):
+            qmc_state.operator_list[n] = op
+            return True
+        else:
+            print(f"Warning: Sampled site operator {op} refers to a site outside of spin_prop range. Skipping.")
+            return False
+    elif isbondoperator(op):
+        site1, site2 = op
+        if site1 < len(spin_prop) and site2 < len(spin_prop) and spin_prop[site1] == spin_prop[site2]:
+            qmc_state.operator_list[n] = op
+            return True
     return False
 
 def diagonal_update(qmc_state, H):
@@ -247,30 +256,43 @@ def resize_op_list(qmc_state, new_size: int):
     qmc_state.leg_types = np.zeros(len_list, dtype=bool)
     qmc_state.associates = [(0, 0, 0) for _ in range(len_list)]
 
-def diagonal_update_beta(qmc_state, H, beta: float, eq: bool = False):
+def diagonal_update_beta(qmc_state, H: TFIM, beta: float, eq: bool = False):
     P_norm = beta * H.P_normalization
 
     num_ids = sum(1 for op in qmc_state.operator_list if isidentity(op))
     P_remove = (num_ids + 1) / P_norm
-    P_accept = P_norm / num_ids
+    P_accept = P_norm / num_ids if num_ids > 0 else 0
 
-    spin_prop = qmc_state.propagated_config = qmc_state.left_config.copy()
+    # Ensure spin_prop is large enough
+    max_site = max(max(op[1] if issiteoperator(op) else max(op) for op in qmc_state.operator_list if not isidentity(op)), H.nspins() - 1)
+    if len(qmc_state.propagated_config) <= max_site:
+        new_size = max_site + 1
+        qmc_state.propagated_config = np.resize(qmc_state.propagated_config, new_size)
+        qmc_state.left_config = np.resize(qmc_state.left_config, new_size)
+        qmc_state.right_config = np.resize(qmc_state.right_config, new_size)
+        print(f"Resized spin configurations to {new_size}")
+
+    spin_prop = qmc_state.propagated_config
 
     for n, op in enumerate(qmc_state.operator_list):
         if not isdiagonal(op):
-            spin_prop[op[1]] ^= 1  # spinflip
+            if op[1] < len(spin_prop):
+                spin_prop[op[1]] ^= 1  # spinflip
+            else:
+                print(f"Warning: Operator {op} refers to a site outside of spin_prop range. Skipping.")
         elif not isidentity(op):
             if np.random.random() < P_remove:
                 qmc_state.operator_list[n] = (0, 0)
                 num_ids += 1
                 P_remove = (num_ids + 1) / P_norm
-                P_accept = P_norm / num_ids
+                P_accept = P_norm / num_ids if num_ids > 0 else 0
         else:
             if np.random.random() < P_accept:
-                if insert_diagonal_operator(qmc_state, H, spin_prop, n):
-                    P_remove = num_ids / P_norm
+                success = insert_diagonal_operator(qmc_state, H, spin_prop, n)
+                if success:
                     num_ids -= 1
-                    P_accept = P_norm / num_ids
+                    P_remove = num_ids / P_norm if num_ids > 0 else 0
+                    P_accept = P_norm / num_ids if num_ids > 0 else 0
 
     total_list_size = len(qmc_state.operator_list)
     num_ops = total_list_size - num_ids
