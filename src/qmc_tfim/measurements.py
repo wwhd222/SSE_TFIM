@@ -3,6 +3,7 @@
 import numpy as np
 from numpy.fft import fft, ifft
 from typing import List, Tuple
+from numba import jit
 
 from .updates import issiteoperator, isdiagonal
 
@@ -27,8 +28,26 @@ def simulation_cell(qmc_state):
         cell[:, n] = spin_prop
     return cell
 
+@jit(nopython=True)
+def calculate_energy(ns, beta, J, h, Ns, Nb):
+    """
+    Calculate the energy of the system.
+    
+    :param ns: Array of operator counts from MC steps
+    :param beta: Inverse temperature
+    :param J: Interaction strength
+    :param h: Transverse field strength
+    :param Ns: Number of spins
+    :param Nb: Number of bonds
+    :return: Energy per site
+    """
+    energy = -np.mean(ns) / beta
+    energy += J * Nb + h * Ns
+    return energy / Ns
+
+@jit(nopython=True)
 def magnetization(spin_prop):
-    return np.mean(2 * spin_prop - 1)
+    return np.mean(2 * spin_prop.astype(np.int32) - 1)
 
 def num_single_site_diag(operator_list):
     return np.mean([issiteoperator(x) and isdiagonal(x) for x in operator_list])
