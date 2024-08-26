@@ -4,6 +4,7 @@ import numpy as np
 from typing import Tuple, List, Callable
 from collections import deque
 from .hamiltonian import TFIM
+from numba import jit, int32, float64
 
 # Helper functions for operator types
 def isdiagonal(op: Tuple[int, int]) -> bool:
@@ -24,6 +25,7 @@ def mc_step(f: Callable, qmc_state, H):
     f(cluster_data, qmc_state, H)
     cluster_update(cluster_data, qmc_state, H)
 
+@jit(nopython=True)
 def mc_step_beta(f: Callable, qmc_state, H, beta: float, eq: bool = False):
     num_ops = diagonal_update_beta(qmc_state, H, beta, eq=eq)
     cluster_data = linked_list_update_beta(qmc_state, H)
@@ -127,6 +129,7 @@ def resize_op_list(qmc_state, new_size: int):
     qmc_state.leg_types = np.zeros(len_list, dtype=bool)
     qmc_state.associates = [(0, 0, 0) for _ in range(len_list)]
 
+@jit(nopython=True)
 def diagonal_update_beta(qmc_state, H: TFIM, beta: float, eq: bool = False):
     P_norm = beta * H.P_normalization
 
@@ -178,7 +181,8 @@ def diagonal_update_beta(qmc_state, H: TFIM, beta: float, eq: bool = False):
         resize_op_list(qmc_state, int(1.5 * num_ops + 0.5))
 
     return num_ops
-    
+
+@jit(nopython=True)
 def linked_list_update_beta(qmc_state, H: TFIM):
     Ns = H.nspins()
     #print(f"Number of spins (Ns): {Ns}")
@@ -314,6 +318,7 @@ def linked_list_update_beta(qmc_state, H: TFIM):
 
     return idx
 
+@jit(nopython=True)
 def cluster_update_beta(lsize: int, qmc_state, H):
     Ns = H.nspins()
     spin_left, spin_right = qmc_state.left_config, qmc_state.right_config
